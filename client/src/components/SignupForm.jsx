@@ -24,29 +24,39 @@ const SignupForm = () => {
 
   const handleFormSubmit = async (event) => {
     event.preventDefault();
+  
+    //setValidated(true);
+  
     const form = event.currentTarget;
     if (form.checkValidity() === false) {
-      event.preventDefault();
       event.stopPropagation();
+      return;
     }
-
+  
     try {
-      // Step 4: Replace the `createUser` call with the mutation function
-      await addUser({
-        variables: { ...userFormData },
+      const { data } = await addUser({
+        variables: {
+          input: {
+            username: userFormData.username,
+            email: userFormData.email,
+            password: userFormData.password,
+          }
+        }
       });
+      if (data) {
+        Auth.login(data.addUser.token);
+      }
     } catch (err) {
       console.error(err);
       setShowAlert(true);
     }
-
+  
     setUserFormData({
       username: '',
       email: '',
       password: '',
     });
   };
-
   return (
     <>
       {/* This is needed for the validation functionality above */}

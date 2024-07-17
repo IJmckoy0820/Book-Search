@@ -1,30 +1,52 @@
+import React, { useState, useEffect } from 'react';
 import { useMutation } from '@apollo/client';
+import { Container, Row, Col, Form, Button, Card } from 'react-bootstrap';
 import { SAVE_BOOK } from '../utils/mutations';
+import { searchGoogleBooks, getSavedBookIds, saveBookIds } from '../utils/queries'; // Adjust the import paths as necessary
+import Auth from '../utils/auth'; // Adjust the import path as necessary
 
 const SearchBooks = () => {
-  // Existing state and useEffect hooks...
-
-  // Step 2: Initialize `useMutation` with the `SAVE_BOOK` mutation
+  const [searchedBooks, setSearchedBooks] = useState([]);
+  const [searchInput, setSearchInput] = useState('');
+  const [savedBookIds, setSavedBookIds] = useState(getSavedBookIds());
   const [saveBookMutation] = useMutation(SAVE_BOOK);
 
-  // Existing code...
+  useEffect(() => {
+    return () => saveBookIds(savedBookIds);
+  }, [savedBookIds]);
 
-  // Step 3: Update `handleSaveBook` to use the mutation
+  const handleFormSubmit = async (event) => {
+    event.preventDefault();
+    if (!searchInput) return false;
+
+    try {
+      const response = await searchGoogleBooks(searchInput);
+      if (!response.ok) throw new Error('something went wrong!');
+
+      const { items } = await response.json();
+      const bookData = items.map((book) => ({
+        bookId: book.id,
+        authors: book.volumeInfo.authors || ['No author to display'],
+        title: book.volumeInfo.title,
+        description: book.volumeInfo.description,
+        image: book.volumeInfo.imageLinks?.thumbnail || '',
+      }));
+
+      setSearchedBooks(bookData);
+      setSearchInput('');
+    } catch (err) {
+      console.error(err);
+    }
+  };
   const handleSaveBook = async (bookId) => {
     const bookToSave = searchedBooks.find((book) => book.bookId === bookId);
     const token = Auth.loggedIn() ? Auth.getToken() : null;
-
-    if (!token) {
-      return false;
-    }
+    if (!token) return false;
 
     try {
-      // Execute the mutation with necessary variables
-      const { data } = await saveBookMutation({
-        variables: { bookId: bookToSave.bookId, /* other book data as needed */ }
+      await saveBookMutation({
+        variables: { bookId: bookToSave.bookId /* other book data as needed */ }
       });
-
-      // Assuming the mutation response includes the saved book's ID, update state
       setSavedBookIds([...savedBookIds, bookToSave.bookId]);
     } catch (err) {
       console.error(err);
