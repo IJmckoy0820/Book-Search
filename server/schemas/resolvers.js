@@ -1,46 +1,41 @@
-const { Book,User } = require('../models');
+const { Book, User } = require('../models');
 const bcrypt = require('bcrypt');
-const { configDotenv } = require('dotenv');
-const jwt = require('jsonwebtoken')
+const { config } = require('dotenv'); // Corrected function name
+const jwt = require('jsonwebtoken');
 const { GraphQLError } = require('graphql');
+
+config(); // Correctly initialize dotenv
+
 const AuthenticationError = new GraphQLError('Could not authenticate user.', {
   extensions: {
     code: 'UNAUTHENTICATED',
   },
-})
-
-configDotenv();
-
+});
 
 const resolvers = {
-    Query: {
-      // Resolver for getting the current user
-      me: async (_, __, { dataSources }) => {
-        // Your logic to get the authenticated user
-        const user = await User.findOne({ _id: context.user._id });
-        if (!user) {
-          throw new AuthenticationError();
-        }
-        return user;    
-
-      },
+  Query: {
+    me: async (_, __, { user }) => { // Corrected to include context as a destructured parameter
+      const foundUser = await User.findOne({ _id: user._id });
+      if (!foundUser) {
+        throw new AuthenticationError();
+      }
+      return foundUser;
     },
-    Mutation: {
-      createUser: async (_, { username, email, password }, { dataSources }) => {
-        // todo:logic to create a user
-        const user = await User.create({ username, email, password });
-        if (!user) {
-          throw new AuthenticationError();
-        }
-        return user;
-
-      },
-      login: async (_, { email, password }, { dataSources }) => {
-        const user = await User.findOne({ email });
-        if (!user) {
-          throw new AuthenticationError();
-        }
-  
+  },
+  Mutation: {
+    createUser: async (_, { username, email, password }) => {
+      const hashedPassword = await bcrypt.hash(password, 10); // Hashing password
+      const user = await User.create({ username, email, password: hashedPassword });
+      if (!user) {
+        throw new AuthenticationError();
+      }
+      return user;
+    },
+    login: async (_, { email, password }) => {
+      const user = await User.findOne({ email });
+      if (!user) {
+        throw new AuthenticationError();
+      }
         const correctPassword = await bcrypt.compare(password, user.password);
         if (!correctPassword) {
           throw new AuthenticationError();
